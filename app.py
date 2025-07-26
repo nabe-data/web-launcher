@@ -45,17 +45,17 @@ def main():
     csv_files, dfs = load_csv_files(path)
 
 
-    # タブの用意(csvファイル名をタブ名に設定+末尾に編集タブを用意)
-    tab_names = [os.path.basename(csv_file) for csv_file in csv_files] if csv_files else []
-    tab_names.append('編集')
-    tabs = st.tabs(tab_names)
+
+    # サイドバーでファイル選択・編集切り替え
+    sidebar_options = [os.path.basename(csv_file) for csv_file in csv_files] if csv_files else []
+    sidebar_options.append('編集')
+    selected = st.sidebar.radio('表示内容を選択', sidebar_options)
 
     if not csv_files:
-        st.warning("CSVファイルが見つかりませんでした。編集タブから新規作成やアップロードが可能です。")
+        st.warning("CSVファイルが見つかりませんでした。編集画面から新規作成やアップロードが可能です。")
 
-    # 編集タブの設定
-    with tabs[-1]:
-        # st.header("CSVファイルの編集")
+    if selected == '編集':
+        st.header("CSVファイルの編集・追加・アップロード")
         for csv_file, df in zip(csv_files, dfs):
             st.subheader(os.path.basename(csv_file))
             edit_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
@@ -68,7 +68,6 @@ def main():
         new_csv_name = st.text_input("CSVファイル名（.csv拡張子を含む）")
         if st.button("新しいCSVファイルを追加"):
             if new_csv_name:
-                # user_dataディレクトリに保存
                 save_path = os.path.join(path, new_csv_name)
                 new_df = pd.DataFrame(columns=["NAME", "URL"])
                 save_dataframe(new_df, save_path)
@@ -87,11 +86,13 @@ def main():
                 st.rerun()
             except Exception as e:
                 st.error(f"アップロード中にエラーが発生しました: {e}")
-
-    # csvファイルタブの設定
-    for tab, (csv_file, df) in zip(tabs[:-1], zip(csv_files, dfs)):
-        with tab:
-            # st.header(os.path.basename(csv_file))
+    else:
+        # ファイル閲覧画面
+        idx = sidebar_options.index(selected)
+        csv_file = csv_files[idx] if idx < len(csv_files) else None
+        if csv_file is not None:
+            df = dfs[idx]
+            st.header(selected)
             if st.button('全て開く', key=f"open_all_{csv_file}"):
                 open_urls(df['URL'])
             df.apply(create_link_button, axis=1)
