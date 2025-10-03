@@ -29,22 +29,26 @@ def create_link_button(row):
     st.link_button(row['NAME'], row['URL'], use_container_width=True)
 
 def save_dataframe(df, csv_file):
-    """データフレームをCSVファイルとして保存する。"""
+    """データフレームをCSVファイルとして保存する。表示は行わず、(success: bool, message: str) を返す。"""
     try:
+        # 保存処理のみ行い、Streamlitの表示は呼び出し元で行う
         df.to_csv(csv_file, index=False)
-        st.success(f"{os.path.basename(csv_file)}を保存しました。")
+        msg = f"{os.path.basename(csv_file)} を保存しました。"
+        return True, msg
     except Exception as e:
-        st.error(f"保存中にエラーが発生しました: {e}")
+        return False, f"保存中にエラーが発生しました: {e}"
 
 def main():
     # st.title("ウェブサイト管理ツール")
 
     # フォルダ内のcsvファイルを読み込む
-    # path = os.getcwd()
     path = os.path.join(os.getcwd(), "user_data")
     csv_files, dfs = load_csv_files(path)
 
-
+    # 保存によるリロード後に表示するトーストがセッションに残っていれば表示して消す
+    if st.session_state.get("save_toast"):
+        st.toast(st.session_state["save_toast"])
+        del st.session_state["save_toast"]
 
     # サイドバーでファイル選択・編集切り替え
     sidebar_options = [os.path.basename(csv_file) for csv_file in csv_files] if csv_files else []
@@ -60,8 +64,13 @@ def main():
             st.subheader(os.path.basename(csv_file))
             edit_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
             if st.button('保存する', key=f"save_{csv_file}"):
-                save_dataframe(edit_df, csv_file)
-                st.rerun()
+                success, msg = save_dataframe(edit_df, csv_file)
+                if success:
+                    # 保存完了メッセージをセッションに入れてからリロードする（リロード後にトースト表示）
+                    st.session_state["save_toast"] = msg
+                    st.rerun()
+                else:
+                    st.error(msg)
 
         # CSVファイルの追加機能
         st.subheader("新しいCSVファイルの追加")
@@ -70,8 +79,12 @@ def main():
             if new_csv_name:
                 save_path = os.path.join(path, new_csv_name)
                 new_df = pd.DataFrame(columns=["NAME", "URL"])
-                save_dataframe(new_df, save_path)
-                st.rerun()
+                success, msg = save_dataframe(new_df, save_path)
+                if success:
+                    st.session_state["save_toast"] = "新しいCSVファイルを追加しました"
+                    st.rerun()
+                else:
+                    st.error(msg)
             else:
                 st.error("CSVファイル名を入力してください。")
 
@@ -82,8 +95,12 @@ def main():
                 new_df = pd.read_csv(uploaded_file)
                 new_csv_name = uploaded_file.name
                 save_path = os.path.join(path, new_csv_name)
-                save_dataframe(new_df, save_path)
-                st.rerun()
+                success, msg = save_dataframe(new_df, save_path)
+                if success:
+                    st.session_state["save_toast"] = "CSVファイルをアップロードしました"
+                    st.rerun()
+                else:
+                    st.error(msg)
             except Exception as e:
                 st.error(f"アップロード中にエラーが発生しました: {e}")
     else:
