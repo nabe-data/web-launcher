@@ -1,0 +1,12 @@
+{
+    "[python]": {
+        // Python ファイルに対しては Ruff をデフォルトフォーマッタに設定
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            // Ruff 拡張が提供する “fix all” と “organize imports” を明示的に実行
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+        }
+    }
+}

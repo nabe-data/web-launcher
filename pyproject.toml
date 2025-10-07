@@ -1,0 +1,9 @@
+[tool.ruff]
+exclude = []
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "C"]
+ignore = ["E501"]
+fixable = ["ALL"]
