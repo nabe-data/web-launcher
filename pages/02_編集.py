@@ -27,7 +27,21 @@ def main():
 
 
 def handle_edit_mode(path: str, csv_files: list, dfs: list) -> None:
-    """Show editors for each CSV file."""
+    """CSVファイル編集用のUIを表示する。
+
+    各CSVファイルに対して編集可能なデータエディタを表示し、保存ボタンを提供します。
+    NAME/URL列が存在しない場合は自動的に追加します。
+
+    Args:
+        path: CSVファイルが格納されているディレクトリパス
+        csv_files: CSVファイルパスのリスト
+        dfs: 編集対象のDataFrameのリスト（csv_filesと順序対応）
+
+    Note:
+        - 保存成功時はトースト表示してページをリロード
+        - 保存失敗時はエラーメッセージを表示
+        - CSVファイルが無い場合は警告メッセージを表示
+    """
     st.subheader("CSVファイルを編集")
     if not csv_files:
         st.warning(
@@ -59,7 +73,18 @@ def handle_edit_mode(path: str, csv_files: list, dfs: list) -> None:
 
 
 def handle_create_mode(path: str, container=st) -> None:
-    """UI for creating a new CSV file. `container` allows rendering in sidebar or main area."""
+    """新規CSVファイル作成用のUIを表示する。
+
+    Args:
+        path: CSVファイルを作成するディレクトリパス
+        container: UIを表示するStreamlitコンテナ。デフォルトはメイン領域
+
+    Note:
+        - 同名ファイルが存在する場合は作成せずにエラー表示
+        - 作成成功時はトースト表示してページをリロード
+        - 作成失敗時はエラーメッセージを表示
+        - 新規ファイルには NAME, URL 列が自動的に追加される
+    """
     # use a distinct key so sidebar/main inputs don't clash
     new_name = container.text_input("新規作成（例: new.csv）", key="create_new_name")
     if container.button("作成", key="create_button"):
@@ -80,7 +105,17 @@ def handle_create_mode(path: str, container=st) -> None:
 
 
 def handle_upload_mode(path: str, container=st) -> None:
-    """UI for uploading a CSV file. `container` allows rendering in sidebar or main area."""
+    """CSVファイルアップロード用のUIを表示する。
+
+    Args:
+        path: アップロードしたCSVファイルを保存するディレクトリパス
+        container: UIを表示するStreamlitコンテナ。デフォルトはメイン領域
+
+    Note:
+        - .csv 拡張子のファイルのみを受け付ける
+        - アップロード成功時はトースト表示してページをリロード
+        - CSVの読み込みやファイル保存に失敗した場合はエラーメッセージを表示
+    """
     uploaded = container.file_uploader(
         "アップロード", type=["csv"], key="sidebar_upload"
     )
