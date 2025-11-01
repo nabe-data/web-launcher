@@ -9,6 +9,12 @@ st.set_page_config(page_title="web-launcher", page_icon="📂")
 
 def main():
     path = os.path.join(os.getcwd(), "user_data")
+    # user_data フォルダが無ければ作成しておく（編集/アップロード時に必要）
+    try:
+        os.makedirs(path, exist_ok=True)
+    except Exception:
+        # 作成に失敗しても後続処理で適切に扱われるようにする
+        pass
     csv_files, dfs = load_csv_files(path)
 
     if not csv_files:
