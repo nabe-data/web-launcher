@@ -129,11 +129,29 @@ def open_urls(urls):
     """
     for url in urls:
         try:
-            if not url:
+            # None や NaN 対策、前後の空白削除
+            if url is None:
                 continue
-            webbrowser.open(url)
+            url_str = str(url).strip()
+            if not url_str:
+                continue
+            # スキームがなければ http:// を補完（mailto: など一般的なスキームは除外）
+            lower = url_str.lower()
+            if not (
+                lower.startswith("http://")
+                or lower.startswith("https://")
+                or lower.startswith("mailto:")
+                or lower.startswith("ftp://")
+            ):
+                url_str = "http://" + url_str
+            webbrowser.open(url_str)
         except Exception as e:
-            st.error(f"URLを開けませんでした: {url} ({e})")
+            # 失敗した URL を表示して次へ
+            try:
+                st.error(f"URLを開けませんでした: {url} ({e})")
+            except Exception:
+                # st が使えない文脈でも最低限の出力は行う
+                print(f"Failed to open URL: {url} ({e})")
 
 
 def create_link_button(row):
