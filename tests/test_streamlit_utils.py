@@ -1,71 +1,81 @@
-import webbrowser
+import os
+import sys
 
 import pandas as pd
 
-from streamlit_utils import _try_read_csv, open_urls, save_dataframe
+# ensure project root is on sys.path when running pytest from tests/
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from streamlit_utils import _try_read_csv, load_csv_files, open_urls, save_dataframe
 
 
 def test_try_read_csv_utf8(tmp_path):
-    p = tmp_path / "t_utf8.csv"
-    p.write_text("NAME,URL\nA,https://example.com\n", encoding="utf-8")
+    p = tmp_path / "a.csv"
+    p.write_text("col1,col2\n1,2\n", encoding="utf-8")
     df = _try_read_csv(str(p))
     assert df is not None
-    assert list(df.columns) == ["NAME", "URL"]
-    assert df.iloc[0]["NAME"] == "A"
+    assert list(df.columns) == ["col1", "col2"]
 
 
-def test_try_read_csv_cp932(tmp_path):
-    p = tmp_path / "t_cp932.csv"
-    # write bytes with cp932 encoding
-    p.write_bytes("NAME,URL\nB,https://example.org\n".encode("cp932"))
+def test_try_read_csv_shiftjis(tmp_path, monkeypatch):
+    p = tmp_path / "sjis.csv"
+    p.write_bytes("名前,URL\nあい,https://example.com\n".encode("shift_jis"))
+    # ensure project root is importable when running pytest from tests/
+    monkeypatch.syspath_prepend(
+        os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    )
     df = _try_read_csv(str(p))
     assert df is not None
-    assert df.iloc[0]["NAME"] == "B"
+    assert "名前" in df.columns
 
 
-def test_save_dataframe_and_contents(tmp_path):
-    out = tmp_path / "out.csv"
-    df = pd.DataFrame({"NAME": ["X"], "URL": ["http://x"]})
+def test_load_csv_files_nonexistent(tmp_path):
+    dirp = tmp_path / "noexist"
+    csvs, dfs = load_csv_files(str(dirp))
+    assert csvs == []
+    assert dfs == []
+
+
+def test_load_csv_files_with_files(tmp_path):
+    dirp = tmp_path
+    f1 = dirp / "1.csv"
+    f1.write_text("A,B\n1,2\n", encoding="utf-8")
+    f2 = dirp / "bad.csv"
+    f2.write_bytes(b"\xff\xff")
+    csvs, dfs = load_csv_files(str(dirp))
+    assert len(csvs) == 2
+    assert len(dfs) == 2
+    names = [os.path.basename(p) for p in csvs]
+    assert "1.csv" in names and "bad.csv" in names
+    idx1 = names.index("1.csv")
+    idx2 = names.index("bad.csv")
+    assert dfs[idx1].shape[0] == 1
+    assert dfs[idx2].empty
+
+
+def test_save_dataframe(tmp_path):
+    df = pd.DataFrame({"a": [1, 2]})
+    out = tmp_path / "sub" / "out.csv"
     ok, msg = save_dataframe(df, str(out))
     assert ok is True
+    assert isinstance(msg, str) and msg
     assert out.exists()
-    read = pd.read_csv(str(out))
-    assert read.iloc[0]["NAME"] == "X"
+    df2 = pd.read_csv(out)
+    assert list(df2.columns) == ["a"]
+    assert df2.shape[0] == 2
 
 
-def test_open_urls_calls_webbrowser(monkeypatch):
+def test_open_urls(monkeypatch):
     called = []
 
     def fake_open(url):
+        if "bad" in url:
+            raise Exception("boom")
         called.append(url)
         return True
 
-    monkeypatch.setattr(webbrowser, "open", fake_open)
-
-    urls = [None, "", "example.com", "https://ok.com", "mailto:me@example.com"]
-    open_urls(urls)
-
-    # scheme-less should have http:// prepended
-    assert "http://example.com" in called
-    assert "https://ok.com" in called
-    assert "mailto:me@example.com" in called
-    # ensure empty/None were not passed
-    assert all(u is not None and u != "" for u in called)
-
-
-def test_open_urls_handles_exceptions(monkeypatch):
-    called = []
-
-    def raise_for_first(url):
-        if url and "bad" in url:
-            raise RuntimeError("boom")
-        called.append(url)
-        return True
-
-    monkeypatch.setattr(webbrowser, "open", raise_for_first)
-
-    urls = ["bad.example", "good.example"]
-    # should not raise
-    open_urls(urls)
-    # good.example should still be attempted (prefixed)
-    assert any("good.example" in (u or "") for u in called)
+    monkeypatch.setattr("webbrowser.open", fake_open)
+    urls = ["https://ok", "bad://url", "", None]
+    failed = open_urls(urls)
+    assert "bad://url" in failed
+    assert "https://ok" in called

@@ -8,25 +8,7 @@ from streamlit_utils import load_csv_files, save_dataframe
 st.set_page_config(page_title="編集", page_icon="✏️")
 
 
-def main():
-    path = os.path.join(os.getcwd(), "user_data")
-    csv_files, dfs = load_csv_files(path)
-
-    # 保存によるリロード後に表示するトーストがセッションに残っていれば表示して消す
-    if st.session_state.get("save_toast"):
-        st.toast(st.session_state["save_toast"])
-        del st.session_state["save_toast"]
-
-    # 編集画面をメインに表示
-    handle_edit_mode(path, csv_files, dfs)
-
-    # 新規作成/アップロードUIはサイドバーに表示
-    st.sidebar.write("CSVファイルを追加")
-    handle_create_mode(path, container=st.sidebar)
-    handle_upload_mode(path, container=st.sidebar)
-
-
-def handle_edit_mode(path: str, csv_files: list, dfs: list) -> None:
+def handle_edit_mode(path: str) -> None:
     """CSVファイル編集用のUIを表示する。
 
     各CSVファイルに対して編集可能なデータエディタを表示し、保存ボタンを提供します。
@@ -34,18 +16,17 @@ def handle_edit_mode(path: str, csv_files: list, dfs: list) -> None:
 
     Args:
         path: CSVファイルが格納されているディレクトリパス
-        csv_files: CSVファイルパスのリスト
-        dfs: 編集対象のDataFrameのリスト（csv_filesと順序対応）
 
     Note:
         - 保存成功時はトースト表示してページをリロード
         - 保存失敗時はエラーメッセージを表示
         - CSVファイルが無い場合は警告メッセージを表示
     """
-    st.subheader("CSVファイルを編集")
+    csv_files, dfs = load_csv_files(path)
+
     if not csv_files:
         st.warning(
-            "CSVファイルが見つかりませんでした。編集画面から新規作成やアップロードが可能です。"
+            "CSVファイルが見つかりませんでした。サイドバーから新規作成やアップロードが可能です。"
         )
 
     for csv_file, df in zip(csv_files, dfs):
@@ -131,6 +112,25 @@ def handle_upload_mode(path: str, container=st) -> None:
                 container.error(msg)
         except Exception as e:
             container.error(f"アップロード中にエラーが発生しました: {e}")
+
+
+def main():
+
+    # 保存によるリロード後に表示するトーストがセッションに残っていれば表示して消す
+    if st.session_state.get("save_toast"):
+        st.toast(st.session_state["save_toast"])
+        del st.session_state["save_toast"]
+
+    path = os.path.join(os.getcwd(), "user_data")
+
+    # 編集画面をメインに表示
+    st.subheader("CSVファイルを編集")
+    handle_edit_mode(path)
+
+    # 新規作成/アップロードUIはサイドバーに表示
+    st.sidebar.write("CSVファイルを追加")
+    handle_create_mode(path, container=st.sidebar)
+    handle_upload_mode(path, container=st.sidebar)
 
 
 if __name__ == "__main__":
