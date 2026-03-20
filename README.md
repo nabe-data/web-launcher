@@ -13,43 +13,34 @@ web-launcher は、ローカルの CSV ファイルで管理する URL リスト
 - 編集ページ（`pages/02_編集.py`）から CSV の編集、保存、新規作成、アップロードが可能
 
 前提・依存
-- Python と以下パッケージが必要です。推奨手順として `requirements.txt` を用意しています。
+- [uv](https://docs.astral.sh/uv/) がインストールされている必要があります。
+- Python 3.13 以上を想定しています（`pyproject.toml` に記載）。
 
 ```powershell
-pip install -r requirements.txt
+uv sync
 ```
 
-- このプロジェクトでは少なくとも以下のバージョンを想定しています（`requirements.txt` に記載）:
-	- streamlit >= 1.22.0
-	- pandas >= 1.5.0
-
-- Streamlit の一部 API（例: `st.data_editor`, `st.link_button`, `st.toast`）を利用しています。これらの API は Streamlit の比較的新しいバージョンで安定して提供されています。`requirements.txt` に記載のバージョンを目安に環境を整えてください。
+- このプロジェクトでは以下のパッケージを利用しています:
+	- streamlit >= 1.55.0
+	- pandas >= 2.2.0
 
 使い方（簡易）
-1. このリポジトリのルートで、必要なパッケージをインストールします（仮想環境推奨）。
+1. `user_data` フォルダに管理したい CSV を置く（存在しない場合、アプリ起動時にフォルダを作成します）。CSV は少なくとも `NAME` と `URL` の列を持つことが期待されますが、編集画面では列の自動追加も行います。
+
+2. アプリを起動します。
 
 ```powershell
-pip install streamlit pandas
+uv run streamlit run app.py
 ```
 
-2. `user_data` フォルダに管理したい CSV を置く（存在しない場合、アプリ起動時にフォルダを作成します）。CSV は少なくとも `NAME` と `URL` の列を持つことが期待されますが、編集画面では列の自動追加も行います。
-
-3. アプリを起動します。
-
-```powershell
-streamlit run app.py
-```
-
-4. ブラウザで表示される UI の概要:
+3. ブラウザで表示される UI の概要:
 - サイドバーで表示する CSV を選択
 - 選択した CSV の各行にリンクボタンが表示され、クリックでブラウザを開く
 - 「全て開く」ボタンで当該ファイル内の全 URL を順次開く
 - 画面上部の「編集」ページで CSV を直接編集、保存、新規作成、アップロードが可能
 
 仕様・実装上の留意点
-- CSV 読み込みでは複数エンコーディング（utf-8, cp932, shift_jis, utf-16）を順に試行します
-- ファイル保存は一時ファイル経由で行い、`os.replace` による原子的な置換を行っています（Windows のファイル置換を考慮）
-- `open_urls` はスキーム補完（`http://` の付与）を実装しました。スキームがない URL（例: `example.com`）は自動的に `http://` が付与されて開かれます。
+- CSV 読み込みでは複数エンコーディング（utf-8, shift_jis）を順に試行します
 
 ドキュメント
 - このリポジトリには詳細な設計書として `仕様書.md` を追加済みです。README と 仕様書 の整合化は行っていますが、動作確認済みの Streamlit バージョンや追加の改善提案については随時更新をお願いします。
@@ -57,9 +48,5 @@ streamlit run app.py
 ライセンス・プライバシー
 - `user_data` 内のファイルは個別に管理する想定のため、 `.gitignore` で除外されます。
 
-ご提案（推奨改善）
-- `tests/` を追加して `streamlit_utils` のユニットテストを整備することを推奨します
-- `tests/` を追加して `streamlit_utils` のユニットテストを整備
-
 ---
-更新日: 2025-11-08
+更新日: 2026-03-20

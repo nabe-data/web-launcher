@@ -4,7 +4,7 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "type": "command",
-        "command": "ruff format . && ruff check --fix . && ruff check ."
+        "command": "uv run ruff format . && uv run ruff check --fix . && uv run ruff check ."
       }
     ]
   }
