@@ -1,0 +1,18 @@
+# ------------------------
+# 許可したい shell コマンド
+# ------------------------
+
+[[rule]]
+toolName = "run_shell_command"
+commandPrefix = [
+  "grep",
+  "cd",
+  "git status",
+  "git log",
+  "git diff",
+  "uv run pytest",
+  "uv run ruff",
+  "uv run pyright"
+]
+decision = "allow"
+priority = 100

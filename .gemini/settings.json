@@ -1,0 +1,30 @@
+{
+  "tools": {
+    "allowed": [
+      "web_fetch",
+      "run_shell_command(grep)",
+      "run_shell_command(cd)",
+      "run_shell_command(git status)",
+      "run_shell_command(git log)",
+      "run_shell_command(git diff)",
+      "run_shell_command(uv run pytest)",
+      "run_shell_command(uv run ruff)",
+      "run_shell_command(uv run pyright)"
+    ]
+  },
+  "hooks": {
+    "AfterTool": [
+      {
+        "matcher": "write_file|replace",
+        "hooks": [
+          {
+            "name": "python-formatter",
+            "type": "command",
+            "command": ".gemini\\hooks\\run_ruff.bat",
+            "description": "Ruffを実行する"
+          }
+        ]
+      }
+    ]
+  }
+}
