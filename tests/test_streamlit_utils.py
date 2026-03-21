@@ -1,9 +1,9 @@
 import os
 import sys
 
-import pandas as pd
+import polars as pl
 
-# ensure project root is on sys.path when running pytest from tests/
+# tests/ から pytest を実行する際、sys.path にプロジェクトルートを追加します
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from streamlit_utils import _try_read_csv, load_csv_files, open_urls, save_dataframe
@@ -20,7 +20,7 @@ def test_try_read_csv_utf8(tmp_path):
 def test_try_read_csv_shiftjis(tmp_path, monkeypatch):
     p = tmp_path / "sjis.csv"
     p.write_bytes("名前,URL\nあい,https://example.com\n".encode("shift_jis"))
-    # ensure project root is importable when running pytest from tests/
+    # tests/ から pytest を実行する際、プロジェクトルートをインポート可能にします
     monkeypatch.syspath_prepend(
         os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     )
@@ -49,20 +49,20 @@ def test_load_csv_files_with_files(tmp_path):
     assert "1.csv" in names and "bad.csv" in names
     idx1 = names.index("1.csv")
     idx2 = names.index("bad.csv")
-    assert dfs[idx1].shape[0] == 1
-    assert dfs[idx2].empty
+    assert dfs[idx1].height == 1
+    assert dfs[idx2].is_empty()
 
 
 def test_save_dataframe(tmp_path):
-    df = pd.DataFrame({"a": [1, 2]})
+    df = pl.DataFrame({"a": [1, 2]})
     out = tmp_path / "sub" / "out.csv"
     ok, msg = save_dataframe(df, str(out))
     assert ok is True
     assert isinstance(msg, str) and msg
     assert out.exists()
-    df2 = pd.read_csv(out)
+    df2 = pl.read_csv(out)
     assert list(df2.columns) == ["a"]
-    assert df2.shape[0] == 2
+    assert df2.height == 2
 
 
 def test_open_urls(monkeypatch):

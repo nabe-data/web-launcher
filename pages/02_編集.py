@@ -1,7 +1,9 @@
 import os
+from typing import Any, Union
 
-import pandas as pd
+import polars as pl
 import streamlit as st
+from streamlit.delta_generator import DeltaGenerator
 
 from streamlit_utils import load_csv_files, save_dataframe
 
@@ -33,18 +35,23 @@ def handle_edit_mode(path: str) -> None:
         base = os.path.basename(csv_file)
         st.subheader(base)
 
-        # 編集用に列がない場合は用意する
         if "NAME" not in df.columns:
-            df.insert(0, "NAME", "")
+            df = df.with_columns(pl.lit("").alias("NAME"))
+            # 「NAME」列を先頭に移動
+            cols = df.columns
+            new_order = ["NAME"] + [c for c in cols if c != "NAME"]
+            df = df.select(new_order)
+
         if "URL" not in df.columns:
-            df["URL"] = ""
+            df = df.with_columns(pl.lit("").alias("URL"))
 
         edit_df = st.data_editor(
-            df, num_rows="dynamic", use_container_width=True, key=f"editor_{base}"
+            df, num_rows="dynamic", width="stretch", key=f"editor_{base}"
         )
 
         if st.button("保存する", key=f"save_{base}"):
-            success, msg = save_dataframe(edit_df, csv_file)
+            # PyrightがPolarsとPandasを誤認するため、型チェックを抑制
+            success, msg = save_dataframe(edit_df, csv_file)  # type: ignore
             if success:
                 # 保存完了メッセージをセッションに入れてからリロードする（リロード後にトースト表示）
                 st.session_state["save_toast"] = msg
@@ -53,7 +60,7 @@ def handle_edit_mode(path: str) -> None:
                 st.error(msg)
 
 
-def handle_create_mode(path: str, container=st) -> None:
+def handle_create_mode(path: str, container: Union[DeltaGenerator, Any] = st) -> None:
     """新規CSVファイル作成用のUIを表示する。
 
     Args:
@@ -66,26 +73,29 @@ def handle_create_mode(path: str, container=st) -> None:
         - 作成失敗時はエラーメッセージを表示
         - 新規ファイルには NAME, URL 列が自動的に追加される
     """
-    # use a distinct key so sidebar/main inputs don't clash
     new_name = container.text_input("新規作成（例: new.csv）", key="create_new_name")
-    if container.button("作成", key="create_button"):
-        if new_name:
-            save_path = os.path.join(path, new_name)
-            if os.path.exists(save_path):
-                container.error("同名ファイルが既に存在します。")
-            else:
-                new_df = pd.DataFrame(columns=["NAME", "URL"])
-                success, msg = save_dataframe(new_df, save_path)
-                if success:
-                    st.session_state["save_toast"] = "新しいCSVファイルを追加しました"
-                    st.rerun()
-                else:
-                    container.error(msg)
-        else:
-            container.error("ファイル名を入力してください。")
+    if not container.button("作成", key="create_button"):
+        return
+
+    if not new_name:
+        container.error("ファイル名を入力してください。")
+        return
+
+    save_path = os.path.join(path, new_name)
+    if os.path.exists(save_path):
+        container.error("同名ファイルが既に存在します。")
+        return
+
+    new_df = pl.DataFrame(schema={"NAME": pl.Utf8, "URL": pl.Utf8})
+    success, msg = save_dataframe(new_df, save_path)
+    if success:
+        st.session_state["save_toast"] = "新しいCSVファイルを追加しました"
+        st.rerun()
+    else:
+        container.error(msg)
 
 
-def handle_upload_mode(path: str, container=st) -> None:
+def handle_upload_mode(path: str, container: Union[DeltaGenerator, Any] = st) -> None:
     """CSVファイルアップロード用のUIを表示する。
 
     Args:
@@ -100,18 +110,20 @@ def handle_upload_mode(path: str, container=st) -> None:
     uploaded = container.file_uploader(
         "アップロード", type=["csv"], key="sidebar_upload"
     )
-    if uploaded is not None:
-        try:
-            new_df = pd.read_csv(uploaded)
-            save_path = os.path.join(path, uploaded.name)
-            success, msg = save_dataframe(new_df, save_path)
-            if success:
-                st.session_state["save_toast"] = "CSVファイルをアップロードしました"
-                st.rerun()
-            else:
-                container.error(msg)
-        except Exception as e:
-            container.error(f"アップロード中にエラーが発生しました: {e}")
+    if uploaded is None:
+        return
+
+    try:
+        new_df = pl.read_csv(uploaded)
+        save_path = os.path.join(path, uploaded.name)
+        success, msg = save_dataframe(new_df, save_path)
+        if success:
+            st.session_state["save_toast"] = "CSVファイルをアップロードしました"
+            st.rerun()
+        else:
+            container.error(msg)
+    except Exception as e:
+        container.error(f"アップロード中にエラーが発生しました: {e}")
 
 
 def main():

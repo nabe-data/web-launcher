@@ -1,6 +1,5 @@
 import os
 
-import pandas as pd
 import streamlit as st
 
 from streamlit_utils import load_csv_files, open_urls
@@ -9,27 +8,26 @@ st.set_page_config(page_title="web-launcher", page_icon="📂")
 
 
 def create_link_button(row):
-    """pandas Series を受け取り、NAME/URL を使ってリンクボタンを作る。
+    """行データを受け取り、NAME/URL を使ってリンクボタンを作る。
 
     Args:
-        row: pandas.Series で NAME と URL の列を含むことが期待される。
-            NAME が無い場合は行インデックスを使用
+        row: 辞書型で NAME と URL のキーを含むことが期待される。
 
     Note:
         - URLが無いか空の場合は NAME のみをテキストとして表示
         - エラーが発生した場合はエラーメッセージを表示
     """
-    name = row.get("NAME", None)
-    if pd.isna(name) or name is None:
-        name = str(row.name)
+    name = row.get("NAME")
+    if name is None:
+        name = "Unknown"
 
-    url = row.get("URL", "")
-    if pd.isna(url) or not url:
+    url = row.get("URL")
+    if url is None or not url:
         st.write(name)
         return
 
     try:
-        st.link_button(name, url, use_container_width=True)
+        st.link_button(name, url, width="stretch")
     except Exception as e:
         st.write(f"行の表示中にエラーが発生しました: {e}")
 
@@ -56,16 +54,17 @@ def main():
     df = dfs[idx]
     st.header(selected)
 
-    if "URL" in df.columns:
-        if st.button("全て開く", key=f"open_all_{selected}"):
-            failed_urls = open_urls(df["URL"].dropna().tolist())
-            if failed_urls:
-                st.warning(f"開けなかったURL: {failed_urls}")
-
-        for _, row in df.iterrows():
-            create_link_button(row)
-    else:
+    if "URL" not in df.columns:
         st.info("このCSVには 'URL' 列がありません。編集ページで確認してください。")
+        return
+
+    if st.button("全て開く", key=f"open_all_{selected}"):
+        failed_urls = open_urls(df["URL"].drop_nulls().to_list())
+        if failed_urls:
+            st.warning(f"開けなかったURL: {failed_urls}")
+
+    for row in df.iter_rows(named=True):
+        create_link_button(row)
 
 
 if __name__ == "__main__":

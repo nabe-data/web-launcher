@@ -4,17 +4,18 @@ import tempfile
 import webbrowser
 from typing import List, Optional, Tuple
 
-import pandas as pd
+import polars as pl
+from polars.exceptions import ComputeError
 
 
-def _try_read_csv(path: str) -> Optional[pd.DataFrame]:
+def _try_read_csv(path: str) -> Optional[pl.DataFrame]:
     """CSVファイルを複数のエンコーディングで読み込みを試みます。
 
     Args:
         path: CSVファイルのパス
 
     Returns:
-        pandas.DataFrame: 読み込みに成功した場合はDataFrame
+        polars.DataFrame: 読み込みに成功した場合はDataFrame
         None: 全てのエンコーディングで読み込みに失敗した場合
 
     Note:
@@ -25,22 +26,22 @@ def _try_read_csv(path: str) -> Optional[pd.DataFrame]:
     encodings = ("utf-8", "shift_jis")
     for enc in encodings:
         try:
-            return pd.read_csv(path, encoding=enc)
-        except (UnicodeDecodeError, pd.errors.ParserError, Exception):
+            return pl.read_csv(path, encoding=enc)
+        except (UnicodeDecodeError, ComputeError, Exception):
             continue
     return None
 
 
-def load_csv_files(path: str) -> Tuple[List[str], List[pd.DataFrame]]:
+def load_csv_files(path: str) -> Tuple[List[str], List[pl.DataFrame]]:
     """指定フォルダ内のCSVファイル一覧とデータフレームリストを返す。
 
     Args:
         path: CSVファイルを探すディレクトリパス。
 
     Returns:
-        tuple[list[str], list[pd.DataFrame]]:
+        tuple[list[str], list[pl.DataFrame]]:
             - list[str]: CSVファイルの絶対パスのリスト
-            - list[pd.DataFrame]: 読み込んだDataFrameのリスト。読み込みに失敗した
+            - list[pl.DataFrame]: 読み込んだDataFrameのリスト。読み込みに失敗した
               ファイルは空のDataFrameとなる
 
     Note:
@@ -53,14 +54,14 @@ def load_csv_files(path: str) -> Tuple[List[str], List[pd.DataFrame]]:
         return [], []
 
     csv_files = sorted(glob.glob(os.path.join(path, "*.csv")))
-    dataframes: List[pd.DataFrame] = []
+    dataframes: List[pl.DataFrame] = []
     for csv_file in csv_files:
         df = _try_read_csv(csv_file)
-        dataframes.append(df if df is not None else pd.DataFrame())
+        dataframes.append(df if df is not None else pl.DataFrame())
     return csv_files, dataframes
 
 
-def save_dataframe(df: pd.DataFrame, csv_file: str) -> Tuple[bool, str]:
+def save_dataframe(df: pl.DataFrame, csv_file: str) -> Tuple[bool, str]:
     """DataFrame を csv_file に保存し、成功状態とメッセージを返す。
 
     ディレクトリを作成し、一時ファイル経由で書き出すことで
@@ -88,7 +89,7 @@ def save_dataframe(df: pd.DataFrame, csv_file: str) -> Tuple[bool, str]:
 
         fd, tmp_path = tempfile.mkstemp(suffix=".tmp", dir=dirpath or None)
         os.close(fd)
-        df.to_csv(tmp_path, index=False)
+        df.write_csv(tmp_path)
         os.replace(tmp_path, csv_file)
         return True, f"{os.path.basename(csv_file)} を保存しました。"
     except Exception as e:
@@ -118,7 +119,7 @@ def open_urls(urls: List[str]) -> List[str]:
     """
     failed: List[str] = []
     for url in urls:
-        if pd.isna(url):
+        if url is None:
             continue
         url_str = str(url).strip()
         if not url_str:

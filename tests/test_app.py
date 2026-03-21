@@ -1,10 +1,9 @@
 import os
 import sys
 
-import pandas as pd
 import streamlit
 
-# ensure project root is importable when running pytest from tests/
+# tests/ から pytest を実行する際、プロジェクトルートをインポート可能にします
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app import create_link_button
@@ -13,17 +12,17 @@ from app import create_link_button
 def test_create_link_button_with_url(monkeypatch):
     captured = {}
 
-    def fake_link_button(name, url, use_container_width=True):
+    def fake_link_button(name, url, width="stretch"):
         captured["name"] = name
         captured["url"] = url
-        captured["use"] = use_container_width
+        captured["use"] = width
 
     monkeypatch.setattr(streamlit, "link_button", fake_link_button)
-    row = pd.Series({"NAME": "N", "URL": "https://x"})
+    row = {"NAME": "N", "URL": "https://x"}
     create_link_button(row)
     assert captured["name"] == "N"
     assert captured["url"] == "https://x"
-    assert captured["use"] is True
+    assert captured["use"] == "stretch"
 
 
 def test_create_link_button_no_url(monkeypatch):
@@ -33,7 +32,7 @@ def test_create_link_button_no_url(monkeypatch):
         wrote["msg"] = msg
 
     monkeypatch.setattr(streamlit, "write", fake_write)
-    row = pd.Series({"NAME": "N", "URL": ""})
+    row = {"NAME": "N", "URL": ""}
     create_link_button(row)
     assert wrote["msg"] == "N"
 
@@ -41,7 +40,7 @@ def test_create_link_button_no_url(monkeypatch):
 def test_create_link_button_exception(monkeypatch):
     wrote = {}
 
-    def fake_link_button(name, url, use_container_width=True):
+    def fake_link_button(name, url, width="stretch"):
         raise RuntimeError("oops")
 
     def fake_write(msg):
@@ -49,6 +48,6 @@ def test_create_link_button_exception(monkeypatch):
 
     monkeypatch.setattr(streamlit, "link_button", fake_link_button)
     monkeypatch.setattr(streamlit, "write", fake_write)
-    row = pd.Series({"NAME": "N", "URL": "https://x"})
+    row = {"NAME": "N", "URL": "https://x"}
     create_link_button(row)
     assert "行の表示中にエラーが発生しました" in wrote["msg"]
