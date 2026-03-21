@@ -65,6 +65,47 @@ def test_save_dataframe(tmp_path):
     assert df2.height == 2
 
 
+def test_save_dataframe_fail(tmp_path, monkeypatch):
+    import polars as pl
+
+    df = pl.DataFrame({"a": [1]})
+    out = tmp_path / "out.csv"
+
+    def fake_write_csv(self, path):
+        raise RuntimeError("write fail")
+
+    monkeypatch.setattr(pl.DataFrame, "write_csv", fake_write_csv)
+    ok, msg = save_dataframe(df, str(out))
+    assert ok is False
+    assert "保存に失敗しました" in msg
+
+
+def test_save_dataframe_cleanup_fail(tmp_path, monkeypatch):
+    import polars as pl
+
+    df = pl.DataFrame({"a": [1]})
+    out = tmp_path / "out.csv"
+
+    # os.remove が失敗するケース（finally ブロックのテスト）
+    def fake_remove(path):
+        raise RuntimeError("remove fail")
+
+    monkeypatch.setattr(os, "remove", fake_remove)
+    # 正常系でも os.remove は呼ばれる（tmp_path は os.replace で消えるはずだが、コード上は finally でチェックしている）
+    # 実際には os.replace が成功すると tmp_path は無くなるので os.path.exists(tmp_path) は False になる。
+    # なので、失敗させて tmp_path が残る状態にする必要がある。
+
+    def fake_replace(src, dst):
+        raise RuntimeError("replace fail")
+
+    monkeypatch.setattr(os, "replace", fake_replace)
+
+    ok, msg = save_dataframe(df, str(out))
+    assert ok is False
+    # finally ブロックで os.remove が呼ばれ、例外が発生するが、pass されるはず。
+    # これを確認するのは難しいが、カバレッジは通るはず。
+
+
 def test_open_urls(monkeypatch):
     called = []
 
