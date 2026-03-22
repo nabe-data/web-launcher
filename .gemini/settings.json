@@ -20,7 +20,7 @@
           {
             "name": "python-formatter",
             "type": "command",
-            "command": ".gemini\\hooks\\run_ruff.bat",
+            "command": ".gemini\\hooks\\run_ruff.ps1",
             "description": "Ruffを実行する"
           }
         ]
