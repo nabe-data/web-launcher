@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "type": "command",
+        "command": "uv run ruff check --fix .; uv run ruff format ."
+      }
+    ]
+  }
+}

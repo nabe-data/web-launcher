@@ -2,78 +2,66 @@ import glob
 import os
 import tempfile
 import webbrowser
+from typing import List, Optional, Tuple
 
-import pandas as pd
-import streamlit as st
+import polars as pl
+from polars.exceptions import ComputeError
 
 
-def _try_read_csv(path):
+def _try_read_csv(path: str) -> Optional[pl.DataFrame]:
     """CSVファイルを複数のエンコーディングで読み込みを試みます。
 
     Args:
         path: CSVファイルのパス
 
     Returns:
-        pandas.DataFrame: 読み込みに成功した場合はDataFrame
+        polars.DataFrame: 読み込みに成功した場合はDataFrame
         None: 全てのエンコーディングで読み込みに失敗した場合
 
     Note:
         以下のエンコーディングを順に試みます:
         - utf-8
-        - cp932 (Windows用日本語文字セット)
         - shift_jis
-        - utf-16
     """
-    encodings = ("utf-8", "cp932", "shift_jis", "utf-16")
+    encodings = ("utf-8", "shift_jis")
     for enc in encodings:
         try:
-            return pd.read_csv(path, encoding=enc)
-        except Exception:
+            return pl.read_csv(path, encoding=enc)
+        except (UnicodeDecodeError, ComputeError, Exception):
             continue
     return None
 
 
-def load_csv_files(path):
+def load_csv_files(path: str) -> Tuple[List[str], List[pl.DataFrame]]:
     """指定フォルダ内のCSVファイル一覧とデータフレームリストを返す。
 
     Args:
-        path: CSVファイルを探すディレクトリパス。存在しない場合は作成を試みる
+        path: CSVファイルを探すディレクトリパス。
 
     Returns:
-        tuple[list[str], list[pd.DataFrame]]:
+        tuple[list[str], list[pl.DataFrame]]:
             - list[str]: CSVファイルの絶対パスのリスト
-            - list[pd.DataFrame]: 読み込んだDataFrameのリスト。読み込みに失敗した
+            - list[pl.DataFrame]: 読み込んだDataFrameのリスト。読み込みに失敗した
               ファイルは空のDataFrameとなる
 
     Note:
-        ディレクトリが存在しない場合、作成を試みて作成できれば空のリストを返す。
-        作成に失敗した場合はエラーメッセージを表示して空のリストを返す。
+        ディレクトリが存在しない場合、空のリストを返す。
 
-        CSVファイルの読み込みは複数のエンコーディングを試みる。全て失敗した場合は
-        エラーメッセージを表示して空のDataFrameをリストに追加する。
+        CSVファイルの読み込みは複数のエンコーディングを試みる。
+        全て失敗した場合は空のDataFrameをリストに追加する。
     """
     if not os.path.isdir(path):
-        # フォルダが無ければ作成して空リストを返す（初回起動時などに親切）
-        try:
-            os.makedirs(path, exist_ok=True)
-            st.info(f"指定されたフォルダがなかったため作成しました: {path}")
-        except Exception as e:
-            st.error(f"指定されたフォルダが存在しません: {path} ({e})")
-            return [], []
+        return [], []
 
     csv_files = sorted(glob.glob(os.path.join(path, "*.csv")))
-    dataframes = []
+    dataframes: List[pl.DataFrame] = []
     for csv_file in csv_files:
         df = _try_read_csv(csv_file)
-        if df is None:
-            st.error(f"CSVの読み込みに失敗しました: {csv_file}")
-            dataframes.append(pd.DataFrame())
-        else:
-            dataframes.append(df)
+        dataframes.append(df if df is not None else pl.DataFrame())
     return csv_files, dataframes
 
 
-def save_dataframe(df, csv_file):
+def save_dataframe(df: pl.DataFrame, csv_file: str) -> Tuple[bool, str]:
     """DataFrame を csv_file に保存し、成功状態とメッセージを返す。
 
     ディレクトリを作成し、一時ファイル経由で書き出すことで
@@ -94,71 +82,50 @@ def save_dataframe(df, csv_file):
         失敗時は一時ファイルを削除します。
     """
     tmp_path = None
+    dirpath = os.path.dirname(csv_file)
     try:
-        dirpath = os.path.dirname(csv_file)
         if dirpath and not os.path.exists(dirpath):
             os.makedirs(dirpath, exist_ok=True)
 
         fd, tmp_path = tempfile.mkstemp(suffix=".tmp", dir=dirpath or None)
         os.close(fd)
-        # pandas がファイルパスを受け取って書き出す
-        df.to_csv(tmp_path, index=False)
-        # 安全に置換
+        df.write_csv(tmp_path)
         os.replace(tmp_path, csv_file)
         return True, f"{os.path.basename(csv_file)} を保存しました。"
     except Exception as e:
-        # 一時ファイルが残っていれば削除を試みる
-        try:
-            if tmp_path and os.path.exists(tmp_path):
-                os.remove(tmp_path)
-        except Exception:
-            pass
         return False, f"保存に失敗しました: {e}"
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                # 削除に失敗しても進行を妨げない
+                pass
 
 
-def open_urls(urls):
+def open_urls(urls: List[str]) -> List[str]:
     """指定した URL リストを順に開く。
 
     Args:
-        urls: 開くURLのリスト。スキームを含まない場合は http:// を自動補完する
+        urls: 開くURLのリスト。
 
     Note:
         - 空のURLはスキップされる
         - 各URLはデフォルトのWebブラウザで開かれる
-        - URLを開けない場合はエラーメッセージを表示して次に進む
+        - 開けなかったURLはリストとして返される
+
+    Returns:
+        list: 開けなかったURLのリスト
     """
+    failed: List[str] = []
     for url in urls:
+        if url is None:
+            continue
+        url_str = str(url).strip()
+        if not url_str:
+            continue
         try:
-            if not url:
-                continue
-            webbrowser.open(url)
-        except Exception as e:
-            st.error(f"URLを開けませんでした: {url} ({e})")
-
-
-def create_link_button(row):
-    """pandas Series を受け取り、NAME/URL を使ってリンクボタンを作る。
-
-    Args:
-        row: pandas.Series で NAME と URL の列を含むことが期待される。
-            NAME が無い場合は行インデックスを使用
-
-    Note:
-        - URLが無いか空の場合は NAME のみをテキストとして表示
-        - st.link_button が利用できない環境では Markdown リンクにフォールバック
-        - エラーが発生した場合はエラーメッセージを表示
-    """
-    try:
-        name = row.get("NAME") if "NAME" in row.index else str(row.name)
-        url = row.get("URL", "")
-        if pd.isna(url) or not url:
-            st.write(name)
-        else:
-            # st.link_button が存在しない環境やバージョン差分に備えてフォールバック
-            try:
-                st.link_button(name, url, use_container_width=True)
-            except Exception:
-                # Markdown 形式で代替表示
-                st.markdown(f"[{name}]({url})")
-    except Exception as e:
-        st.write(f"行の表示中にエラーが発生しました: {e}")
+            webbrowser.open(url_str)
+        except Exception:
+            failed.append(url_str)
+    return failed
