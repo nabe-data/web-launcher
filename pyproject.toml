@@ -12,3 +12,10 @@ dependencies = [
     "ruff>=0.15.7",
     "streamlit>=1.55.0",
 ]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
