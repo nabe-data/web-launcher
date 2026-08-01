@@ -1,6 +1,6 @@
+import importlib.util
 import os
 import sys
-import importlib.util
 from unittest.mock import MagicMock
 
 import polars as pl

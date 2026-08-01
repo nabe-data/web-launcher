@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content|write_file|replace",
+        "hooks": [
+          {
+            "name": "python-formatter",
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File .agents\\hooks\\run_ruff.ps1",
+            "description": "Ruffを実行する"
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content|write_file|replace",
+        "hooks": [
+          {
+            "name": "python-formatter",
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File .agents\\hooks\\run_ruff.ps1",
+            "description": "Ruffを実行する"
+          }
+        ]
+      }
+    ]
+  }
+}
