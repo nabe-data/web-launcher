@@ -53,7 +53,8 @@ def handle_edit_mode(path: str) -> None:
             # PyrightがPolarsとPandasを誤認するため、型チェックを抑制
             success, msg = save_dataframe(edit_df, csv_file)  # type: ignore
             if success:
-                # 保存完了メッセージをセッションに入れてからリロードする（リロード後にトースト表示）
+                # 保存完了メッセージをセッションに入れてからリロードする
+                # （リロード後にトースト表示）
                 st.session_state["save_toast"] = msg
                 st.rerun()
             else:
