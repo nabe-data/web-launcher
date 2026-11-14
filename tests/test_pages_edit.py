@@ -1,6 +1,7 @@
 import importlib.util
 import os
 import sys
+from types import ModuleType
 from unittest.mock import MagicMock
 
 import polars as pl
@@ -8,10 +9,20 @@ import polars as pl
 # プロジェクトルートを sys.path に追加
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+
 # Streamlit を事前にモックして、トップレベルの st.set_page_config 等を無害化する
+class MockDeltaGenerator:
+    pass
+
+
 mock_st = MagicMock()
 mock_st.session_state = {}
+mock_st.__path__ = []
+mock_delta_generator = ModuleType("streamlit.delta_generator")
+mock_delta_generator.__dict__["DeltaGenerator"] = MockDeltaGenerator
+mock_st.delta_generator = mock_delta_generator
 sys.modules["streamlit"] = mock_st
+sys.modules["streamlit.delta_generator"] = mock_delta_generator
 
 
 # pages/02_編集.py をインポート
@@ -110,9 +121,9 @@ def test_handle_create_mode_errors(monkeypatch):
 
 def test_main(monkeypatch):
     monkeypatch.setattr(edit_page.st, "session_state", {"save_toast": "hello"})
-    monkeypatch.setattr(edit_page.st, "toast", MagicMock())
-    monkeypatch.setattr(edit_page.st, "subheader", MagicMock())
-    monkeypatch.setattr(edit_page.st, "sidebar", MagicMock())
+    monkeypatch.setattr(edit_page.st, "toast", MagicMock(), raising=False)
+    monkeypatch.setattr(edit_page.st, "subheader", MagicMock(), raising=False)
+    monkeypatch.setattr(edit_page.st, "sidebar", MagicMock(), raising=False)
 
     # Mock handlers to avoid deep logic
     monkeypatch.setattr(edit_page, "handle_edit_mode", MagicMock())
