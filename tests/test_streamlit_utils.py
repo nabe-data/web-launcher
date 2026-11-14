@@ -91,8 +91,10 @@ def test_save_dataframe_cleanup_fail(tmp_path, monkeypatch):
         raise RuntimeError("remove fail")
 
     monkeypatch.setattr(os, "remove", fake_remove)
-    # 正常系でも os.remove は呼ばれる（tmp_path は os.replace で消えるはずだが、コード上は finally でチェックしている）
-    # 実際には os.replace が成功すると tmp_path は無くなるので os.path.exists(tmp_path) は False になる。
+    # 正常系でも os.remove は呼ばれる
+    # （tmp_path は os.replace で消えるはずだが、コード上は finally でチェックしている）
+    # 実際には os.replace が成功すると tmp_path は無くなるので
+    # os.path.exists(tmp_path) は False になる。
     # なので、失敗させて tmp_path が残る状態にする必要がある。
 
     def fake_replace(src, dst):
